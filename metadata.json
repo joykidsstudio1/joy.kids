@@ -1,0 +1,6 @@
+{
+  "name": "YouTube AI Studio Pro",
+  "description": "A comprehensive AI-powered YouTube studio and assistant",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
