@@ -20,18 +20,52 @@ async function startServer() {
         return res.status(400).json({ error: "Prompt is required" });
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          systemInstruction: systemInstruction || "You are an expert YouTube assistant.",
+      let attempt = 0;
+      let lastError;
+      const maxRetries = 3;
+
+      while (attempt < maxRetries) {
+        try {
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+              systemInstruction: systemInstruction || "You are an expert YouTube assistant.",
+            }
+          });
+          
+          return res.json({ text: response.text });
+        } catch (err: any) {
+          lastError = err;
+          const msg = err.message || "";
+          // Check for 503 Unavailable
+          if (err.status === 503 || msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
+            attempt++;
+            if (attempt < maxRetries) {
+              console.log(`Gemini API 503, retrying attempt ${attempt}...`);
+              // wait for 2 seconds before retrying
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              continue;
+            }
+          }
+          // If it's not a 503 or we ran out of retries, break
+          break;
         }
-      });
-      
-      res.json({ text: response.text });
+      }
+
+      // If we got here, it means we exhausted retries or hit a different error
+      let errorMessage = lastError?.message || "Failed to generate AI content";
+      if (lastError?.status === 503 || errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
+        errorMessage = 'يواجه الذكاء الاصطناعي ضغطاً عالياً حالياً. يرجى المحاولة مرة أخرى بعد قليل.';
+      } else {
+        console.error(lastError);
+      }
+      res.status(500).json({ error: errorMessage });
+
     } catch (e: any) {
       console.error(e);
-      res.status(500).json({ error: e.message || "Failed to generate AI content" });
+      let errorMessage = e.message || "Failed to generate AI content";
+      res.status(500).json({ error: errorMessage });
     }
   });
 

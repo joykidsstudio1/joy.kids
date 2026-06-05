@@ -14,6 +14,8 @@ import Analytics from './pages/Analytics';
 import Videos from './pages/Videos';
 import Assistant from './pages/Assistant';
 import ContentGen from './pages/ContentGen';
+import Automation from './pages/Automation';
+import { Zap } from 'lucide-react';
 
 function Sidebar({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
@@ -24,6 +26,7 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
     { to: '/videos', icon: Video, label: 'مقاطع الفيديو' },
     { to: '/assistant', icon: BrainCircuit, label: 'المساعد الذكي' },
     { to: '/content', icon: Wand2, label: 'صناعة المحتوى' },
+    { to: '/automation', icon: Zap, label: 'الأتمتة الكاملة' },
   ];
 
   return (
@@ -175,6 +178,7 @@ export default function App() {
           <Route path="/videos" element={<Videos />} />
           <Route path="/assistant" element={<Assistant />} />
           <Route path="/content" element={<ContentGen />} />
+          <Route path="/automation" element={<Automation />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MainLayout>

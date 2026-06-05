@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getBasicAnalytics } from '../lib/analytics';
 import { subDays, format } from 'date-fns';
+import { AlertTriangle } from 'lucide-react';
 
 export default function Analytics() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -26,6 +28,11 @@ export default function Analytics() {
         }
       } catch (e: any) {
         console.error("Failed to load analytics. Ensuring permissions.", e);
+        if (e.message?.includes('YouTube Analytics API has not been used')) {
+          setError('يجب تفعيل YouTube Analytics API في مشروع Google Cloud الخاص بك. قم بزيارة الرابط الظاهر في الخطأ أو تواصل مع المطور لتمكين الخدمة.');
+        } else {
+          setError(e.message || 'حدث خطأ أثناء تحميل إحصائيات القناة');
+        }
         // Note: YouTube Analytics API needs proper setup in GCP console and scopes
         // We will generate mock data fallback so user can see UI layout
         const mockData = Array.from({ length: 30 }).map((_, i) => ({
@@ -42,21 +49,32 @@ export default function Analytics() {
     load();
   }, []);
 
-  if (loading) return <div>Loading Analytics...</div>;
+  if (loading) return <div>جاري تحميل التحليلات...</div>;
 
   return (
     <div>
+      {error && (
+        <div className="mb-8 bg-red-500/10 border border-red-500/20 rounded-2xl p-6 flex items-start gap-4">
+          <AlertTriangle className="text-red-400 shrink-0 mt-1" size={24} />
+          <div>
+            <h3 className="text-lg font-bold text-red-100 mb-1">تنبيه: بيانات تجريبية</h3>
+            <p className="text-red-200">{error}</p>
+            <p className="text-red-200/80 text-sm mt-2">يعرض المخطط بيانات تجريبية حاليًا.</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Channel Analytics</h1>
+        <h1 className="text-3xl font-bold text-white">تحليلات القناة</h1>
         <select className="bg-slate-900 border border-slate-800 text-white rounded-lg px-4 py-2">
-          <option>Last 30 Days</option>
-          <option>Last 7 Days</option>
-          <option>This Year</option>
+          <option>آخر 30 يوم</option>
+          <option>آخر 7 أيام</option>
+          <option>هذا العام</option>
         </select>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-8">
-        <h2 className="text-xl font-bold mb-6">Views Overview</h2>
+        <h2 className="text-xl font-bold mb-6">نظرة عامة على المشاهدات</h2>
         <div className="h-96 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
@@ -81,7 +99,7 @@ export default function Analytics() {
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
-            <h2 className="text-xl font-bold mb-6">Watch Time (Minutes)</h2>
+            <h2 className="text-xl font-bold mb-6">وقت المشاهدة (بالدقائق)</h2>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data}>
@@ -95,7 +113,7 @@ export default function Analytics() {
             </div>
          </div>
          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
-            <h2 className="text-xl font-bold mb-6">Subscribers Gained</h2>
+            <h2 className="text-xl font-bold mb-6">المشتركين المكتسبين</h2>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data}>

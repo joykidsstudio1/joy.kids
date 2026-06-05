@@ -33,8 +33,65 @@ export async function getChannelVideos(playlistId: string, maxResults = 50) {
   return data.items || [];
 }
 
-export async function getVideoStats(videoIds: string[]) {
-  const ids = videoIds.join(',');
-  const data = await fetchWithAuth(`/videos?part=snippet,statistics&id=${ids}`);
-  return data.items || [];
+export async function uploadVideo(
+  file: File,
+  metadata: { title: string; description: string; tags: string[]; privacyStatus: string },
+  onProgress: (progress: number) => void
+) {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated');
+
+  // 1. Initial Request to get resumable upload URI
+  const initRes = await fetch('https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'X-Upload-Content-Length': file.size.toString(),
+      'X-Upload-Content-Type': file.type,
+    },
+    body: JSON.stringify({
+      snippet: {
+        title: metadata.title,
+        description: metadata.description,
+        tags: metadata.tags,
+      },
+      status: {
+        privacyStatus: metadata.privacyStatus,
+        selfDeclaredMadeForKids: true, // Specific for Joy Kids, ensure it's safe! Or let them decide.
+      },
+    }),
+  });
+
+  if (!initRes.ok) {
+    const err = await initRes.json().catch(() => ({}));
+    throw new Error(err.error?.message || 'Failed to initialize upload');
+  }
+
+  const uploadUrl = initRes.headers.get('Location');
+  if (!uploadUrl) throw new Error('Upload URL not returned');
+
+  // 2. Upload the file using XMLHttpRequest to track progress
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl, true);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        onProgress((e.loaded / e.total) * 100);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        reject(new Error(`Upload failed with status: ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.send(file);
+  });
 }
