@@ -19,11 +19,11 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
   
   const links = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/analytics', icon: LineChart, label: 'Analytics' },
-    { to: '/videos', icon: Video, label: 'Videos' },
-    { to: '/assistant', icon: BrainCircuit, label: 'AI Assistant' },
-    { to: '/content', icon: Wand2, label: 'Content Gen' },
+    { to: '/', icon: LayoutDashboard, label: 'لوحة القيادة' },
+    { to: '/analytics', icon: LineChart, label: 'التحليلات' },
+    { to: '/videos', icon: Video, label: 'مقاطع الفيديو' },
+    { to: '/assistant', icon: BrainCircuit, label: 'المساعد الذكي' },
+    { to: '/content', icon: Wand2, label: 'صناعة المحتوى' },
   ];
 
   return (
@@ -57,7 +57,7 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
           className="flex flex-row items-center gap-2 w-full px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
         >
           <LogOut size={18} />
-          <span>Sign Out</span>
+          <span>تسجيل الخروج</span>
         </button>
       </div>
     </div>
@@ -66,9 +66,9 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
 
 function MainLayout({ children, onLogout }: { children: React.ReactNode, onLogout: () => void }) {
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-50">
+    <div className="flex min-h-screen bg-slate-950 text-slate-50" dir="rtl">
       <Sidebar onLogout={onLogout} />
-      <div className="flex-1 ml-64 p-8 overflow-y-auto h-screen">
+      <div className="flex-1 mr-64 p-8 overflow-y-auto h-screen">
         <div className="max-w-6xl mx-auto w-full">
           {children}
         </div>
@@ -110,9 +110,9 @@ export default function App() {
     } catch (e: any) {
       console.error(e);
       if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
-        setAuthError("Sign-in was cancelled. If you encountered an API permission error earlier, I have fixed it behind the scenes! Please try signing in again.");
+        setAuthError("تم إلغاء عملية تسجيل الدخول. يرجى المحاولة مرة أخرى.");
       } else {
-        setAuthError(e.message || "Failed to sign in. Make sure popups are allowed.");
+        setAuthError(e.message || "فشل تسجيل الدخول. تأكد من السماح بالنوافذ المنبثقة.");
       }
     }
   };
@@ -123,36 +123,28 @@ export default function App() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white" dir="rtl">جاري التحميل...</div>;
   }
 
   if (needsAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4" dir="rtl">
         <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center">
           <div className="w-16 h-16 bg-gradient-to-tr from-red-500 to-orange-500 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg shadow-red-500/20">
             <Video className="text-white" size={32} />
           </div>
           <h1 className="text-3xl font-bold text-white mb-3">YouTube AI Studio</h1>
-          <p className="text-slate-400 mb-6">Sign in with your Google account to connect your channel and unlock AI-powered insights.</p>
+          <p className="text-slate-400 mb-6">قم بتسجيل الدخول بحساب Google لربط قناتك وفتح ميزات الذكاء الاصطناعي.</p>
           
           {authError && (
-            <div className="mb-6 p-6 bg-red-500/10 border-2 border-red-500 rounded-xl text-left">
+            <div className="mb-6 p-6 bg-red-500/10 border-2 border-red-500 rounded-xl text-right">
               <h3 className="text-red-400 font-bold mb-2 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                Sign In Error
+                خطأ في تسجيل الدخول
               </h3>
               <p className="text-red-200 text-sm mb-3">
                 {authError}
               </p>
-              <div className="bg-red-950/50 p-3 rounded-lg border border-red-500/30">
-                <p className="text-red-100 text-sm font-semibold">
-                  👉 To fix this: Use the "Share" or "Publish" button to open the app in its own standalone web page. Google blocks sign-ins inside the AI Studio preview window.
-                </p>
-                <p className="text-red-100 text-sm font-semibold mt-2" dir="rtl">
-                  👉 لحل هذه المشكلة: قم بنشر الموقع (Share) وافتحه في رابط خارجي منفصل، لأن جوجل تمنع تسجيل الدخول داخل نافذة المعاينة.
-                </p>
-              </div>
             </div>
           )}
 
@@ -167,7 +159,7 @@ export default function App() {
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
               <path fill="none" d="M0 0h48v48H0z"></path>
             </svg>
-            Continue with Google
+            المتابعة باستخدام Google
           </button>
         </div>
       </div>
