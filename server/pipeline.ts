@@ -25,20 +25,31 @@ export interface PipelineResult {
   };
 }
 
-export async function generateWithRetry(params: any, maxRetries = 3) {
+export async function generateWithRetry(params: any, maxRetries = 5) {
+  const fallbackModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-pro'];
+  let currentModelIndex = fallbackModels.indexOf(params.model) !== -1 ? fallbackModels.indexOf(params.model) : 0;
+
   let attempt = 0;
   let lastError;
   while (attempt < maxRetries) {
     try {
+      params.model = fallbackModels[currentModelIndex];
       return await ai.models.generateContent(params);
     } catch (err: any) {
       lastError = err;
       const msg = err.message || "";
-      if (err.status === 503 || msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
+      // Match common overload/unavailability indicators
+      if (err.status === 503 || err.status === 429 || msg.includes('503') || msg.includes('429') || msg.includes('high demand') || msg.includes('UNAVAILABLE') || msg.includes('RESOURCE_EXHAUSTED')) {
         attempt++;
         if (attempt < maxRetries) {
-          console.log(`[Pipeline] Gemini API 503, retrying attempt ${attempt}...`);
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+          // Switch model on failure
+          if (currentModelIndex < fallbackModels.length - 1) {
+            currentModelIndex++;
+            console.log(`[Pipeline] Gemini API errored (${err.status || 'rate limit/unavailability'}), switching to fallback model: ${fallbackModels[currentModelIndex]} (attempt ${attempt})...`);
+          } else {
+            console.log(`[Pipeline] Gemini API errored, retrying same model: ${fallbackModels[currentModelIndex]} (attempt ${attempt})...`);
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+          }
           continue;
         }
       }
@@ -59,7 +70,7 @@ export async function runStoryPipeline(topic: string, io: any, accessToken?: str
   };
 
   try {
-    emit('generate-story', 'running', 'Started generating story...');
+    emit('generate-story', 'running', 'بدأت كتابة القصة...');
     console.log(`[Pipeline] Starting story generation for topic: ${topic}`);
 
     // 1. Generate Story Text using Gemini
@@ -75,11 +86,11 @@ export async function runStoryPipeline(topic: string, io: any, accessToken?: str
       return scene;
     }).slice(0, 5); // Take up to 5 scenes
 
-    emit('generate-story', 'completed', 'Story generated successfully');
+    emit('generate-story', 'completed', 'تم توليد القصة بنجاح.');
     console.log(`[Pipeline] Generated ${scenes.length} scenes.`);
 
     // 2. Generate Video Assets (Image + Audio)
-    emit('generate-assets', 'running', 'Downloading assets...');
+    emit('generate-assets', 'running', 'جاري تحميل الأصول (الصور والصوت)...');
     const audioFiles: string[] = new Array(scenes.length);
     const imageFiles: string[] = new Array(scenes.length);
 
@@ -106,13 +117,13 @@ export async function runStoryPipeline(topic: string, io: any, accessToken?: str
         .then(() => { imageFiles[i] = imagePath; });
 
       await Promise.all([audioP, imageP]);
-      emit('generate-assets', 'running', `Scene ${i + 1} assets downloaded.`);
+      emit('generate-assets', 'running', `تم تحميل أصول المشهد ${i + 1}.`);
       console.log(`[Pipeline] Scene ${i + 1} assets downloaded.`);
     }));
-    emit('generate-assets', 'completed', 'Assets downloaded');
+    emit('generate-assets', 'completed', 'اكتمل تحميل الأصول.');
 
     // 3. Assemble Video with FFmpeg
-    emit('assemble-video', 'running', 'Assembling video scenes...');
+    emit('assemble-video', 'running', 'جاري تجميع مشاهد الفيديو...');
     console.log(`[Pipeline] Assembling video scenes in parallel...`);
     const finalVideoPath = path.join(jobDir, 'final_video.mp4');
     
@@ -139,7 +150,7 @@ export async function runStoryPipeline(topic: string, io: any, accessToken?: str
           .on('error', (err) => reject(err));
       });
       sceneVideos[i] = sceneMp4Path;
-      emit('assemble-video', 'running', `Scene ${i} assembled.`);
+      emit('assemble-video', 'running', `تم تجميع المشهد ${i + 1}.`);
       console.log(`[Pipeline] Scene ${i} assembled.`);
     }));
 
@@ -158,12 +169,12 @@ export async function runStoryPipeline(topic: string, io: any, accessToken?: str
         .on('end', () => resolve())
         .on('error', (err) => reject(err));
     });
-    emit('assemble-video', 'completed', 'Video assembled successfully');
+    emit('assemble-video', 'completed', 'تم تجميع الفيديو بنجاح.');
 
     console.log(`[Pipeline] Video assembled successfully at ${finalVideoPath}`);
 
     // 4. Generate Metadata
-    emit('generate-metadata', 'running', 'Generating metadata...');
+    emit('generate-metadata', 'running', 'جاري إنشاء البيانات الوصفية (العنوان والوصف)...');
     const metadataResponse = await generateWithRetry({
       model: 'gemini-2.5-flash',
       contents: `Based on a story about ${topic}, provide a YouTube video title, description, and tags formatted strictly as JSON. Example: {"title": "...", "description": "...", "tags": ["tag1", "tag2"]}. Respond in Arabic.`,
@@ -178,10 +189,10 @@ export async function runStoryPipeline(topic: string, io: any, accessToken?: str
     } catch (e) {
       console.warn("Could not parse metadata JSON, using defaults");
     }
-    emit('generate-metadata', 'completed', 'Metadata generated');
+    emit('generate-metadata', 'completed', 'تم إنشاء البيانات الوصفية بنجاح.');
 
     // 5. Upload to YouTube (If token is provided)
-    emit('upload-video', 'running', 'Uploading to YouTube...');
+    emit('upload-video', 'running', 'جاري الرفع على يوتيوب...');
     if (accessToken) {
       console.log(`[Pipeline] Uploading to YouTube... (placeholder)`);
       // NOTE: Actual YouTube upload from server requires googleapis package
@@ -189,8 +200,8 @@ export async function runStoryPipeline(topic: string, io: any, accessToken?: str
       // or implement the nodejs `googleapis` upload if necessary.
       // But for a true automated pipeline we'd do it here.
     }
-    emit('upload-video', 'completed', 'Upload completed');
-    emit('completed', 'completed', 'Finished successfully', { 
+    emit('upload-video', 'completed', 'تم الرفع بنجاح.');
+    emit('completed', 'completed', 'اكتملت جميع المهام بنجاح.', { 
         videoPath: `/pipeline-output/job-${timestamp}/final_video.mp4`, 
         metadata 
     });
