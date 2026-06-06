@@ -2,19 +2,103 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import cron from "node-cron";
+import { runStoryPipeline } from "./server/pipeline";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Simple in-memory config store for cron job
+let autopilotConfig = {
+  enabled: false,
+  topic: "",
+  scheduleTime: "12:00", // HH:mm
+  accessToken: "",
+};
+let currentCronJob: any = null;
+let lastRunLog: any = null;
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const httpServer = createServer(app);
+  const io = new Server(httpServer);
 
   app.use(express.json());
+
+  // Socket.io connection handling
+  io.on('connection', (socket) => {
+    console.log('A client connected:', socket.id);
+  });
+
+  // AutoPilot Endpoints
+  app.get("/api/autopilot/config", (req, res) => {
+    res.json({
+      config: { ...autopilotConfig, accessToken: autopilotConfig.accessToken ? "SET" : "" },
+      lastRun: lastRunLog,
+    });
+  });
+
+  app.post("/api/autopilot/config", (req, res) => {
+    const { enabled, topic, scheduleTime, accessToken } = req.body;
+    
+    autopilotConfig = {
+      enabled,
+      topic,
+      scheduleTime,
+      accessToken: accessToken || autopilotConfig.accessToken,
+    };
+
+    // Update cron job
+    if (currentCronJob) {
+      currentCronJob.stop();
+      currentCronJob = null;
+    }
+
+    if (enabled && scheduleTime) {
+      const [hour, minute] = scheduleTime.split(":");
+      const cronExpr = `${minute} ${hour} * * *`;
+      console.log(`[AutoPilot] Scheduling story generation for cron: ${cronExpr}`);
+      
+      currentCronJob = cron.schedule(cronExpr, async () => {
+        console.log(`[AutoPilot] Cron triggered at ${new Date().toISOString()}`);
+        try {
+          const result = await runStoryPipeline(autopilotConfig.topic, io, autopilotConfig.accessToken);
+          lastRunLog = { status: 'success', time: new Date().toISOString(), result };
+          console.log("[AutoPilot] Pipeline finished successfully.");
+        } catch (error: any) {
+          lastRunLog = { status: 'error', time: new Date().toISOString(), error: error.message };
+          console.error("[AutoPilot] Pipeline failed:", error);
+        }
+      });
+    }
+
+    res.json({ success: true, config: { ...autopilotConfig, accessToken: !!autopilotConfig.accessToken } });
+  });
+
+  app.post("/api/autopilot/trigger", async (req, res) => {
+    console.log("[AutoPilot] Manual manual trigger requested");
+    try {
+      const result = await runStoryPipeline(autopilotConfig.topic || "قصة عن الصداقة والحيوانات", io, autopilotConfig.accessToken);
+      lastRunLog = { status: 'success', time: new Date().toISOString(), result };
+      res.json(result);
+    } catch (error: any) {
+      lastRunLog = { status: 'error', time: new Date().toISOString(), error: error.message };
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve pipeline output statically
+  app.use('/pipeline-output', express.static(path.join(process.cwd(), 'dist', 'pipeline-output')));
 
   // API Route to handle AI operations
   app.post("/api/ai", async (req, res) => {
     try {
       const { prompt, systemInstruction } = req.body;
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY environment variable is not set" });
+      }
+      const ai = new GoogleGenAI({ apiKey });
       
       if (!prompt) {
         return res.status(400).json({ error: "Prompt is required" });
@@ -84,7 +168,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
