@@ -90,7 +90,13 @@ export default function AutoPilot() {
           setRunning(false);
           setPercentCounter(100);
           setLogs(prev => [...prev, { id: Date.now() + Math.random(), message: 'أكتمل إعداد الفيديو النهائي بنجاح.', type: 'success' }]);
-          if (data.extra) {
+          if (data.extra?.result) {
+             const finalData = data.extra.result;
+             setResult(finalData);
+             setFinalTitle(finalData.metadata?.title || videoTitle || 'عنوان افتراضي');
+             setFinalDescription(finalData.metadata?.description || 'وصف رائع لهذه القصة الجميلة.');
+             setFinalTags(finalData.metadata?.tags ? finalData.metadata.tags.join('، ') : 'أطفال، تعليمي، قصة');
+          } else if (data.extra) {
              setResult(data.extra);
              setFinalTitle(data.extra.metadata?.title || videoTitle || 'عنوان افتراضي');
              setFinalDescription(data.extra.metadata?.description || 'وصف رائع لهذه القصة الجميلة.');
@@ -99,7 +105,8 @@ export default function AutoPilot() {
              // Mock result if extra is empty
              setResult({
                videoPath: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-               thumbnail: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80'
+               thumbnail: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
+               stats: { fileSizeBytes: 1024*1024*5, generationTimeMs: 120000, videoDurationSec: 60 }
              });
              setFinalTitle(videoTitle || 'مغامرة رائعة');
              setFinalDescription('تم إنتاج قصة رائعة بشكل جميل.');
@@ -414,7 +421,33 @@ export default function AutoPilot() {
                     <div className="pt-6 border-t border-slate-100 space-y-3">
                       <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">القسم الخامس: الإجراءات</h3>
                       
-                      <button className="w-full bg-rose-600 hover:bg-rose-700 text-white py-3 rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
+                      {result.stats && (
+                        <div className="grid grid-cols-3 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                           <div>
+                             <div className="text-[10px] text-slate-500 uppercase">حجم الملف</div>
+                             <div className="text-sm font-bold text-slate-700 dir-ltr">{(result.stats.fileSizeBytes / (1024*1024)).toFixed(1)} MB</div>
+                           </div>
+                           <div className="border-x border-slate-200">
+                             <div className="text-[10px] text-slate-500 uppercase">المدة</div>
+                             <div className="text-sm font-bold text-slate-700 dir-ltr">{Math.round(result.stats.videoDurationSec || 0)}s</div>
+                           </div>
+                           <div>
+                             <div className="text-[10px] text-slate-500 uppercase">وقت الإنشاء</div>
+                             <div className="text-sm font-bold text-slate-700 dir-ltr">{(result.stats.generationTimeMs / 1000).toFixed(1)}s</div>
+                           </div>
+                        </div>
+                      )}
+
+                      <a 
+                        href={result.videoPath} 
+                        download={`video-${Date.now()}.mp4`}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2"
+                      >
+                        <Video size={20} />
+                        تنزيل الفيديو (Download)
+                      </a>
+
+                      <button className="w-full bg-rose-600 hover:bg-rose-700 text-white py-3 rounded-xl font-bold transition-all flex justify-center items-center gap-2">
                         <UploadCloud size={20} />
                         النشر على يوتيوب
                       </button>
@@ -467,7 +500,10 @@ export default function AutoPilot() {
                       <button className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 py-2 rounded-lg font-semibold text-sm transition-colors">
                         معاينة
                       </button>
-                      <button className="px-3 py-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100">
+                      <button className="px-3 py-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-100" title="تنزيل (Download)">
+                        <Video size={18} />
+                      </button>
+                      <button className="px-3 py-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100" title="حذف (Delete)">
                         <Trash2 size={18} />
                       </button>
                     </div>

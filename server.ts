@@ -3,7 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import cron from "node-cron";
-import { runStoryPipeline } from "./server/pipeline";
+import { runStoryPipeline } from "./server/pipeline.ts";
 import { createServer } from "http";
 import { Server } from "socket.io";
 

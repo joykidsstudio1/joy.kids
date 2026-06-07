@@ -6,6 +6,14 @@
     <title>My Google AI Studio App</title>
   </head>
   <body>
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        document.body.innerHTML = '<div style="color: red; padding: 20px;"><h1>Global Error:</h1><pre>' + message + '</pre><pre>' + (error ? error.stack : '') + '</pre></div>';
+      };
+      window.onunhandledrejection = function(event) {
+        document.body.innerHTML = '<div style="color: red; padding: 20px;"><h1>Unhandled Promise Rejection:</h1><pre>' + (event.reason ? event.reason.stack || event.reason : "unknown") + '</pre></div>';
+      };
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

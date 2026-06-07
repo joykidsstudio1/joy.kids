@@ -1,10 +1,22 @@
+import type { FirebaseOptions } from 'firebase/app';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import * as configModule from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+const firebaseConfig = (configModule && (configModule as any).default) || configModule;
+console.log('Loaded FB config:', firebaseConfig);
+
+const fallbackConfig = {
+  projectId: "fallback",
+  apiKey: "fallback",
+  authDomain: "fallback"
+};
+
+const finalConfig = (firebaseConfig && Object.keys(firebaseConfig).length > 0) ? firebaseConfig : fallbackConfig;
+
+const app = initializeApp(finalConfig as FirebaseOptions);
+export const db = getFirestore(app, (finalConfig as any).firestoreDatabaseId || '(default)');
 export const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();

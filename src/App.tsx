@@ -82,6 +82,7 @@ function MainLayout({ children, onLogout }: { children: React.ReactNode, onLogou
 }
 
 export default function App() {
+  console.log("App component mounted.");
   const [needsAuth, setNeedsAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
